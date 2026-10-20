@@ -1,0 +1,120 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:LeviShare.App"
+        xmlns:core="using:LeviShare"
+        x:Class="LeviShare.App.MainWindow"
+        x:DataType="app:MainViewModel"
+        Title="LeviShare"
+        Icon="/Assets/levishare.ico"
+        Width="1040" Height="720" MinWidth="560" MinHeight="420">
+
+  <DockPanel Margin="16,12,16,12">
+
+    <!-- Header -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+      <StackPanel>
+        <TextBlock Classes="h1" Text="LeviShare" />
+        <TextBlock Classes="note" Text="{Binding L[Subtitle]}" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+        <Button Classes="link" Content="日本語" Click="OnJapanese" />
+        <Button Classes="link" Content="English" Click="OnEnglish" />
+      </StackPanel>
+    </Grid>
+
+    <!-- Source: data folder and instance -->
+    <Border DockPanel.Dock="Top" Classes="card">
+      <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto">
+        <TextBlock Text="{Binding L[DataFolder]}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <SelectableTextBlock Grid.Column="1" Text="{Binding DataRoot}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Opacity="0.85" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+          <Button Content="{Binding L[Change]}" Click="OnChangeFolder" />
+          <Button Content="{Binding L[Reload]}" Click="OnReload" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" Text="{Binding L[Instance]}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,8,12,0" />
+        <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0" MinWidth="320"
+                  ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="core:InstanceSummary">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding GameVersion}" Opacity="0.7" />
+                <TextBlock Text="{Binding Type}" Opacity="0.5" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Classes="warn" Margin="0,8,0,0" Text="{Binding InstanceWarning}"
+                   IsVisible="{Binding InstanceWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </Grid>
+    </Border>
+
+    <TextBlock DockPanel.Dock="Bottom" Classes="note" Margin="2,6,0,0" Text="{Binding About}" />
+
+    <!-- Footer: summary and export -->
+    <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,10,0,0">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+        <StackPanel>
+          <TextBlock Text="{Binding Summary}" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Classes="note" Text="{Binding Details}" />
+        </StackPanel>
+        <Button Grid.Column="1" Grid.RowSpan="2" Classes="primary" VerticalAlignment="Center" Margin="12,0,0,0"
+                Content="{Binding L[Export]}" IsEnabled="{Binding CanExport}" Click="OnExport" />
+        <SelectableTextBlock Grid.Row="1" Margin="0,6,0,0" Text="{Binding Message}" Foreground="{Binding MessageBrush}" TextWrapping="Wrap" />
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="0,6,0,0" IsVisible="{Binding HasExport}">
+          <Button Content="{Binding L[OpenFolder]}" Click="OnOpenFolder" />
+          <Button Content="{Binding L[CopySteps]}" Click="OnCopySteps" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Body: what to share | how to import -->
+    <Grid ColumnDefinitions="3*,2*">
+      <ScrollViewer Margin="0,0,10,0">
+        <ItemsControl ItemsSource="{Binding Sections}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="app:ShareSection">
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="h2" Text="{Binding Title}" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding !IsEmpty}">
+                      <Button Classes="link" Content="{Binding $parent[Window].((app:MainViewModel)DataContext).L[SelectAll]}" Click="OnSelectAll" />
+                      <Button Classes="link" Content="{Binding $parent[Window].((app:MainViewModel)DataContext).L[SelectNone]}" Click="OnSelectNone" />
+                    </StackPanel>
+                  </Grid>
+                  <TextBlock Classes="note" Text="{Binding Note}" IsVisible="{Binding HasNote}" Margin="0,2,0,4" />
+                  <TextBlock Classes="note" Text="{Binding $parent[Window].((app:MainViewModel)DataContext).L[None]}" IsVisible="{Binding IsEmpty}" />
+                  <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="app:ShareItem">
+                        <CheckBox IsChecked="{Binding IsChecked}">
+                          <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{Binding Title}" />
+                            <TextBlock Text="{Binding Detail}" Opacity="0.55" />
+                          </StackPanel>
+                        </CheckBox>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <ScrollViewer Grid.Column="1">
+        <Border Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h2" Text="{Binding L[HowToImport]}" />
+            <SelectableTextBlock Text="{Binding ImportSteps}" TextWrapping="Wrap" LineHeight="21" />
+            <Button Content="{Binding L[CopySteps]}" Click="OnCopySteps" />
+          </StackPanel>
+        </Border>
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
+</Window>
