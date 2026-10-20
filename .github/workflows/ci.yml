@@ -20,14 +20,24 @@ jobs:
       - run: dotnet build LeviShare.sln -c Release
       - run: dotnet test tests/LeviShare.Tests -c Release --no-build
 
-      # Tags like v0.1.0 build the release zip and attach it to a draft release.
+      # Tags like v0.1.0 build the release zip and publish it. If a release for the tag already
+      # exists (for example one written by hand), the zip is attached to it instead.
       - name: Publish release zip
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: ./tools/publish.ps1
-      - name: Create draft release
+      - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         shell: pwsh
-        run: gh release create "${{ github.ref_name }}" (Get-ChildItem artifacts/*.zip).FullName --draft --title "LeviShare ${{ github.ref_name }}" --notes "See README for usage."
+        run: |
+          $zip = (Get-ChildItem artifacts/*.zip).FullName
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:TAG $zip --clobber
+          } else {
+            gh release create $env:TAG $zip --title "LeviShare $env:TAG" --notes "Download the zip below, unzip it and run LeviShare.exe. Usage: README.md / README_JP.md."
+          }
+          exit $LASTEXITCODE
