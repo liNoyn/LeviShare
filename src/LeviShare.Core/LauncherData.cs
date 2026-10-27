@@ -46,4 +46,12 @@ public sealed class LauncherData
 public sealed record InstanceSummary(string Name, string GameVersion, string Type, string PackageType)
 {
     public bool IsUwp => PackageType == "uwp";
+
+    /// <summary>What to show next to the name: the game version when the instance was renamed, plus Preview / UWP.</summary>
+    public string Note => string.Join(" · ", new[]
+    {
+        GameVersion != Name ? GameVersion : "",
+        Type.Equals("preview", StringComparison.OrdinalIgnoreCase) ? "Preview" : "",
+        IsUwp ? "UWP" : "",
+    }.Where(s => s.Length > 0));
 }

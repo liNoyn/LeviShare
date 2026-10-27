@@ -72,7 +72,7 @@ public static class ShareExporter
         var plan = new SharePlan
         {
             Instance = instance,
-            LipPackages = instance.LipPackages.Where(p => selection.LipPackages.Contains(p.Identifier)).ToList(),
+            LipPackages = PromoteOrphanDependencies(instance.LipPackages.Where(p => selection.LipPackages.Contains(p.Identifier)).ToList()),
             RawMods = instance.RawMods.Where(m => selection.RawMods.Contains(m.Folder)).ToList(),
             Packs = instance.Packs.Where(p => selection.Packs.Contains(p.Key)).ToList(),
         };
@@ -111,6 +111,22 @@ public static class ShareExporter
         foreach (var m in plan.RawMods) Measure(RawModKey(m.Folder), $"mods/raw/{m.Folder}", false);
         foreach (var p in plan.Packs) Measure(PackKey(p.Key), $"{SharedMojangInArchive}/{p.Root}/{p.Folder}", repaired.Contains(p.Key));
         return stats;
+    }
+
+    // LeviLauncher's restore only installs packages marked explicitInstalled and expects lip to pull
+    // in their dependencies. A dependency shared without any selected package that needs it would
+    // therefore never be installed, so it is marked explicit instead.
+    static List<LipPackage> PromoteOrphanDependencies(List<LipPackage> selected)
+    {
+        var covered = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var byId = selected.ToDictionary(p => p.Identifier, StringComparer.OrdinalIgnoreCase);
+        var queue = new Queue<string>(selected.Where(p => p.ExplicitInstalled).Select(p => p.Identifier));
+        while (queue.TryDequeue(out var id))
+        {
+            if (!covered.Add(id) || !byId.TryGetValue(id, out var package)) continue;
+            foreach (var dep in package.Dependencies ?? []) queue.Enqueue(dep);
+        }
+        return selected.Select(p => p.ExplicitInstalled || covered.Contains(p.Identifier) ? p : p with { ExplicitInstalled = true }).ToList();
     }
 
     public static string RawModKey(string folder) => "mod:" + folder;

@@ -2,15 +2,19 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 
 namespace LeviShare.App;
 
 public partial class MainWindow : Window
 {
-    readonly MainViewModel _vm = new();
+    readonly MainViewModel _vm;
 
-    public MainWindow()
+    public MainWindow() : this(new MainViewModel()) { }
+
+    public MainWindow(MainViewModel viewModel)
     {
+        _vm = viewModel;
         InitializeComponent();
         DataContext = _vm;
     }
@@ -22,6 +26,23 @@ public partial class MainWindow : Window
     void OnEnglish(object? sender, RoutedEventArgs e) => _vm.SetLanguage(false);
 
     void OnReload(object? sender, RoutedEventArgs e) => _vm.Reload();
+
+    void OnClearSearch(object? sender, RoutedEventArgs e)
+    {
+        _vm.SearchText = "";
+        SearchBox.Focus();
+    }
+
+    void OnThemeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox picker) return;
+        RequestedThemeVariant = picker.SelectedIndex switch
+        {
+            1 => ThemeVariant.Light,
+            2 => ThemeVariant.Dark,
+            _ => ThemeVariant.Default,
+        };
+    }
 
     async void OnChangeFolder(object? sender, RoutedEventArgs e)
     {

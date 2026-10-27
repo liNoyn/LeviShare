@@ -15,7 +15,23 @@ public sealed class Loc(bool japanese)
 
     static readonly Dictionary<string, string> En = new()
     {
-        ["Subtitle"] = "Share a LeviLauncher setup (mods and packs) as a zip that LeviLauncher can restore.",
+        ["Theme"] = "Appearance",
+        ["ThemeAuto"] = "System",
+        ["ThemeLight"] = "Light",
+        ["ThemeDark"] = "Dark",
+        ["ClearSearch"] = "Clear search",
+        ["SelectedOnly"] = "Selected only",
+        ["Search"] = "Search by name, version or folder…",
+        ["SelectionCount"] = "{0} / {1} selected",
+        ["ChooseInstance"] = "Choose an instance",
+        ["EmptyHint"] = "Choose your LeviLauncher data folder and an instance above to see its mods and packs.",
+        ["NoMatches"] = "No matching items. Clear the search or turn off Selected only.",
+        ["NothingToShare"] = "This instance has no mods or packs to share.",
+        ["Ready"] = "Select at least one mod or pack.",
+        ["Complete"] = "Your zip is ready to share.",
+        ["ExportingShort"] = "Creating your zip…",
+        ["ImportHint"] = "Send the zip and these steps. The recipient restores it in LeviLauncher.",
+        ["ViewSteps"] = "View import steps",
         ["DataFolder"] = "LeviLauncher data",
         ["Change"] = "Change...",
         ["Reload"] = "Reload",
@@ -38,8 +54,9 @@ public sealed class Loc(bool japanese)
         ["None"] = "(none)",
         ["SelectAll"] = "All",
         ["SelectNone"] = "None",
-        ["Summary"] = "{0} lip mods, {1} mods, {2} packs  ·  {3} files, {4}",
-        ["SummaryCounting"] = "{0} lip mods, {1} mods, {2} packs  ·  counting files...",
+        ["Summary"] = "{0} lip mods · {1} mods · {2} packs",
+        ["SummarySize"] = "{0:N0} files · {1} before compression",
+        ["Counting"] = "Counting files…",
         ["Excluded"] = "{0} files left out (logs, .pdb, IDs)",
         ["Repaired"] = "{0} pack manifests cleaned up for LeviLauncher (content unchanged)",
         ["Export"] = "Export share zip...",
@@ -51,7 +68,6 @@ public sealed class Loc(bool japanese)
         ["Copied"] = "Copied to the clipboard.",
         ["NothingSelected"] = "Select at least one mod or pack.",
         ["Error"] = "Error: {0}",
-        ["HowToImport"] = "How the recipient imports it",
         ["ImportSteps"] =
             "1. In LeviLauncher, open Settings > Others and turn on \"Instance backup (experimental)\".\n" +
             "2. Download Minecraft {0} and create an instance.\n" +
@@ -63,7 +79,23 @@ public sealed class Loc(bool japanese)
 
     static readonly Dictionary<string, string> Ja = new()
     {
-        ["Subtitle"] = "LeviLauncher の構成（Mod とパック）を、LeviLauncher で復元できる zip にして共有します。",
+        ["Theme"] = "外観",
+        ["ThemeAuto"] = "システム",
+        ["ThemeLight"] = "ライト",
+        ["ThemeDark"] = "ダーク",
+        ["ClearSearch"] = "検索をクリア",
+        ["SelectedOnly"] = "選択済みのみ",
+        ["Search"] = "名前・バージョン・フォルダを検索…",
+        ["SelectionCount"] = "{0} / {1} 件を選択",
+        ["ChooseInstance"] = "インスタンスを選択",
+        ["EmptyHint"] = "上部で LeviLauncher のデータフォルダとインスタンスを選ぶと、Mod とパックが表示されます。",
+        ["NoMatches"] = "該当する項目がありません。検索をクリアするか「選択済みのみ」を解除してください。",
+        ["NothingToShare"] = "このインスタンスには共有できる Mod・パックがありません。",
+        ["Ready"] = "Mod かパックを 1 つ以上選んでください。",
+        ["Complete"] = "共有用 zip の準備ができました。",
+        ["ExportingShort"] = "共有用 zip を作成中…",
+        ["ImportHint"] = "zip と一緒に手順も送れます。受け取る人は LeviLauncher から復元できます。",
+        ["ViewSteps"] = "取り込み手順を見る",
         ["DataFolder"] = "LeviLauncher のデータ",
         ["Change"] = "変更...",
         ["Reload"] = "再読み込み",
@@ -86,8 +118,9 @@ public sealed class Loc(bool japanese)
         ["None"] = "（なし）",
         ["SelectAll"] = "すべて",
         ["SelectNone"] = "なし",
-        ["Summary"] = "lip Mod {0} 件・Mod {1} 件・パック {2} 件  ·  {3} ファイル、{4}",
-        ["SummaryCounting"] = "lip Mod {0} 件・Mod {1} 件・パック {2} 件  ·  ファイルを数えています…",
+        ["Summary"] = "lip Mod {0} 件・Mod {1} 件・パック {2} 件",
+        ["SummarySize"] = "{0:N0} ファイル・圧縮前 {1}",
+        ["Counting"] = "ファイルを数えています…",
         ["Excluded"] = "{0} 個のファイルを除外（ログ・.pdb・ID）",
         ["Repaired"] = "{0} 個のパックの manifest を LeviLauncher 用に整形（内容は同じ）",
         ["Export"] = "共有用 zip を書き出す...",
@@ -99,7 +132,6 @@ public sealed class Loc(bool japanese)
         ["Copied"] = "クリップボードにコピーしました。",
         ["NothingSelected"] = "Mod かパックを 1 つ以上選んでください。",
         ["Error"] = "エラー: {0}",
-        ["HowToImport"] = "受け取った人の取り込み方",
         ["ImportSteps"] =
             "1. LeviLauncher の 設定 > その他 で「インスタンスバックアップ（実験的）」をオンにする。\n" +
             "2. Minecraft {0} をダウンロードしてインスタンスを作る。\n" +

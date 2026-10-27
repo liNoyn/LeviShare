@@ -15,6 +15,8 @@ No installation and no .NET runtime needed (Windows 10/11, 64-bit).
 
 ## Sharing a setup
 
+Search matches names, versions and folders. **All / None** changes only the rows currently shown, and **Selected only** narrows the list without changing what is exported. The look follows [LeviLauncher](https://github.com/LiteLDev/LeviLauncher)'s colors, with system, light and dark appearance.
+
 1. Start LeviShare. It finds LeviLauncher's data automatically (`%APPDATA%\levilauncher.exe`, or the folder set in LeviLauncher's settings).
    If it doesn't, use **Change...** and pick the folder that contains `versions`.
 2. Choose the instance.

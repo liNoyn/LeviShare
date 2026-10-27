@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Avalonia.Media;
 
 namespace LeviShare.App;
 
@@ -44,16 +43,36 @@ public sealed class ShareItem(ItemKind kind, string key, string title, string de
 
 public sealed class ShareSection(string title, string note, Action changed) : Observable
 {
+    string _query = "";
+    bool _selectedOnly;
     public string Title { get; } = title;
     public string Note { get; } = note;
     public ObservableCollection<ShareItem> Items { get; } = [];
     public bool IsEmpty => Items.Count == 0;
     public bool HasNote => Note.Length > 0;
+    public IEnumerable<ShareItem> VisibleItems => Items.Where(i =>
+        (!_selectedOnly || i.IsChecked) &&
+        (i.Title.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
+         i.Detail.Contains(_query, StringComparison.OrdinalIgnoreCase)));
+    public bool HasMatches => VisibleItems.Any();
+    public string CountLabel => $"{Items.Count(i => i.IsChecked)} / {Items.Count}";
+
+    public void Refresh(string query, bool selectedOnly = false)
+    {
+        if (_query != query || _selectedOnly != selectedOnly || selectedOnly)
+        {
+            _query = query;
+            _selectedOnly = selectedOnly;
+            Raise(nameof(VisibleItems));
+            Raise(nameof(HasMatches));
+        }
+        Raise(nameof(CountLabel));
+    }
 
     /// <summary>Ticks or unticks every row, then recalculates once instead of once per row.</summary>
     public void SetAll(bool value)
     {
-        foreach (var item in Items) item.SetQuietly(value);
+        foreach (var item in VisibleItems) item.SetQuietly(value);
         changed();
     }
 }
@@ -61,7 +80,7 @@ public sealed class ShareSection(string title, string note, Action changed) : Ob
 public sealed class MainViewModel : Observable
 {
     Loc _l = new(Loc.SystemIsJapanese);
-    LauncherData _data = LauncherData.Detect();
+    LauncherData _data;
     InstanceSummary? _selected;
     Instance? _instance;
     Dictionary<string, ItemStats>? _stats;
@@ -70,6 +89,42 @@ public sealed class MainViewModel : Observable
     string _message = "";
     string _messageClass = "note";
     string? _lastExport;
+    string _searchText = "";
+    bool _selectedOnly;
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (Set(ref _searchText, value))
+            {
+                Raise(nameof(HasSearch));
+                RefreshSections();
+            }
+        }
+    }
+    public bool HasSearch => SearchText.Length > 0;
+    public bool SelectedOnly
+    {
+        get => _selectedOnly;
+        set { if (Set(ref _selectedOnly, value)) RefreshSections(); }
+    }
+    public bool HasInstance => _instance is not null;
+    public bool HasItems => TotalCount > 0;
+    public bool NothingToShare => HasInstance && !HasItems;
+    public bool NoMatches => HasItems && !Sections.Any(s => s.HasMatches);
+    public int SelectedCount => Sections.Sum(s => s.Items.Count(i => i.IsChecked));
+    public int TotalCount => Sections.Sum(s => s.Items.Count);
+    public string SelectionLabel => L.Format("SelectionCount", SelectedCount, TotalCount);
+    public string ExportState => IsBusy ? L["ExportingShort"] : HasExport ? L["Complete"] : HasInstance && !_hasSelection ? L["Ready"] : "";
+    public bool HasExportState => ExportState.Length > 0;
+
+    void RefreshSections()
+    {
+        foreach (var section in Sections) section.Refresh(SearchText.Trim(), SelectedOnly);
+        Raise(nameof(NoMatches));
+    }
 
     public Loc L { get => _l; private set => Set(ref _l, value); }
     public string DataRoot => _data.Root;
@@ -77,6 +132,7 @@ public sealed class MainViewModel : Observable
     public ObservableCollection<ShareSection> Sections { get; } = [];
     public string InstanceWarning { get; private set; } = "";
     public string Summary { get; private set; } = "";
+    public string SummarySize { get; private set; } = "";
     public string Details { get; private set; } = "";
     public bool CanExport => _instance is not null && _hasSelection && !_busy;
     public bool HasExport => _lastExport is not null;
@@ -86,13 +142,9 @@ public sealed class MainViewModel : Observable
 
     public string Message { get => _message; private set => Set(ref _message, value); }
 
-    public IBrush MessageBrush => _messageClass switch
-    {
-        "ok" => new SolidColorBrush(Color.Parse("#7FD8A8")),
-        "bad" => new SolidColorBrush(Color.Parse("#FF7B6B")),
-        "warn" => new SolidColorBrush(Color.Parse("#F0A050")),
-        _ => new SolidColorBrush(Color.Parse("#C8C8C8")),
-    };
+    public bool MessageIsSuccess => _messageClass == "ok";
+    public bool MessageIsError => _messageClass == "bad";
+    public bool MessageIsWarning => _messageClass == "warn";
 
     public InstanceSummary? SelectedInstance
     {
@@ -103,13 +155,35 @@ public sealed class MainViewModel : Observable
         }
     }
 
-    public MainViewModel() => Reload();
+    public MainViewModel() : this(LauncherData.Detect()) { }
 
+    public MainViewModel(LauncherData data)
+    {
+        _data = data;
+        Reload();
+    }
+
+    // Only the labels change: the loaded instance, measured sizes, selection and last export are kept,
+    // so switching language never re-reads the disk.
     public void SetLanguage(bool japanese)
     {
+        if (L.Japanese == japanese) return;
+        var selected = Sections.SelectMany(s => s.Items)
+            .Where(i => i.IsChecked).Select(i => (i.Kind, i.Key)).ToHashSet();
         L = new Loc(japanese);
-        LoadInstance();
+        InstanceWarning = BuildWarning();
+        if (_instance is { } inst)
+        {
+            BuildSections(inst);
+            foreach (var item in Sections.SelectMany(s => s.Items))
+                item.SetQuietly(selected.Contains((item.Kind, item.Key)));
+        }
+        Raise(nameof(InstanceWarning));
+        Raise(nameof(ImportSteps));
+        Raise(nameof(ExportState));
+        Raise(nameof(HasExportState));
         Raise(nameof(About));
+        Recalculate();
     }
 
     public void SetDataRoot(string root)
@@ -137,13 +211,13 @@ public sealed class MainViewModel : Observable
         Sections.Clear();
         _instance = null;
         _stats = null;
+        _loadError = null;
         var version = ++_loadVersion;
-        InstanceWarning = "";
         _lastExport = null;
         Message = "";
-        if (!_data.Exists) InstanceWarning = L["NoData"];
-        else if (Instances.Count == 0) InstanceWarning = L["NoInstances"];
-        else if (_selected is { IsUwp: true }) InstanceWarning = L["UwpInstance"];
+        if (!_data.Exists) _loadError = "NoData";
+        else if (Instances.Count == 0) _loadError = "NoInstances";
+        else if (_selected is { IsUwp: true }) _loadError = "UwpInstance";
         else if (_selected is not null)
         {
             try
@@ -152,23 +226,37 @@ public sealed class MainViewModel : Observable
             }
             catch (ShareException ex)
             {
-                InstanceWarning = ex.Code == ShareException.Uwp ? L["UwpInstance"] : L["InstanceNotFound"];
+                _loadError = ex.Code == ShareException.Uwp ? "UwpInstance" : "InstanceNotFound";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _loadError = "InstanceNotFound";
             }
         }
 
+        InstanceWarning = BuildWarning();
         if (_instance is { } inst)
         {
-            var warnings = new List<string>();
-            if (!inst.EnableIsolation) warnings.Add(L["SharedData"]);
-            if (inst.EncryptedPacks.Count > 0) warnings.Add(L.Format("Encrypted", string.Join(", ", inst.EncryptedPacks)));
-            InstanceWarning = string.Join("\n", warnings);
             BuildSections(inst);
             _ = MeasureAsync(inst, version);
         }
         Raise(nameof(InstanceWarning));
         Raise(nameof(ImportSteps));
         Raise(nameof(HasExport));
+        Raise(nameof(HasInstance));
         Recalculate();
+    }
+
+    string? _loadError;
+
+    string BuildWarning()
+    {
+        if (_loadError is not null) return L[_loadError];
+        if (_instance is not { } inst) return "";
+        var warnings = new List<string>();
+        if (!inst.EnableIsolation) warnings.Add(L["SharedData"]);
+        if (inst.EncryptedPacks.Count > 0) warnings.Add(L.Format("Encrypted", string.Join(", ", inst.EncryptedPacks)));
+        return string.Join("\n", warnings);
     }
 
     // Counting tens of thousands of files takes seconds, so it runs off the UI thread once per
@@ -190,6 +278,7 @@ public sealed class MainViewModel : Observable
 
     void BuildSections(Instance inst)
     {
+        Sections.Clear();
         var defaults = ShareSelection.Default(inst);
 
         var lip = new ShareSection(L["LipTitle"], L["LipNote"], Recalculate);
@@ -238,15 +327,17 @@ public sealed class MainViewModel : Observable
         var checkedItems = Sections.SelectMany(s => s.Items).Where(i => i.IsChecked).ToList();
         _hasSelection = checkedItems.Count > 0;
         Summary = "";
+        SummarySize = "";
         Details = "";
         if (_instance is not null)
         {
             var lip = checkedItems.Count(i => i.Kind == ItemKind.Lip);
             var mods = checkedItems.Count(i => i.Kind == ItemKind.RawMod);
             var packs = checkedItems.Count(i => i.Kind == ItemKind.Pack);
+            Summary = L.Format("Summary", lip, mods, packs);
             if (_stats is null)
             {
-                Summary = L.Format("SummaryCounting", lip, mods, packs);
+                SummarySize = L["Counting"];
             }
             else
             {
@@ -255,18 +346,27 @@ public sealed class MainViewModel : Observable
                     .Select(i => _stats.GetValueOrDefault(i.Kind == ItemKind.RawMod ? ShareExporter.RawModKey(i.Key) : ShareExporter.PackKey(i.Key)))
                     .OfType<ItemStats>()
                     .ToList();
-                Summary = L.Format("Summary", lip, mods, packs, stats.Sum(s => s.Files), FormatSize(stats.Sum(s => s.Size)));
+                SummarySize = L.Format("SummarySize", stats.Sum(s => s.Files), FormatSize(stats.Sum(s => s.Size)));
                 var details = new List<string>();
                 var excluded = stats.Sum(s => s.Excluded);
                 var repaired = stats.Count(s => s.Repaired);
                 if (excluded > 0) details.Add(L.Format("Excluded", excluded));
                 if (repaired > 0) details.Add(L.Format("Repaired", repaired));
-                Details = string.Join("  ·  ", details);
+                Details = string.Join("\n", details);
             }
         }
         Raise(nameof(Summary));
+        Raise(nameof(SummarySize));
         Raise(nameof(Details));
         Raise(nameof(CanExport));
+        Raise(nameof(ExportState));
+        Raise(nameof(HasExportState));
+        Raise(nameof(HasItems));
+        Raise(nameof(NothingToShare));
+        Raise(nameof(SelectedCount));
+        Raise(nameof(TotalCount));
+        Raise(nameof(SelectionLabel));
+        RefreshSections();
     }
 
     public string SuggestedFileName =>
@@ -279,12 +379,18 @@ public sealed class MainViewModel : Observable
         get => _busy;
         private set
         {
-            if (Set(ref _busy, value)) Raise(nameof(CanExport));
+            if (Set(ref _busy, value))
+            {
+                Raise(nameof(CanExport));
+                Raise(nameof(ExportState));
+                Raise(nameof(HasExportState));
+            }
         }
     }
 
     public async Task ExportAsync(string path)
     {
+        if (IsBusy) return;
         if (_instance is not { } instance || !_hasSelection)
         {
             ShowMessage(L["NothingSelected"], "warn");
@@ -306,6 +412,12 @@ public sealed class MainViewModel : Observable
         {
             ShowMessage(L.Format("Error", ex.Message), "bad");
         }
+        catch (Exception ex)
+        {
+            // OnExport is async void: anything left uncaught here would close the app.
+            var log = Program.WriteCrashLog(ex);
+            ShowMessage(L.Format("Error", log is null ? ex.Message : $"{ex.Message} ({log})"), "bad");
+        }
         finally
         {
             IsBusy = false;
@@ -315,7 +427,9 @@ public sealed class MainViewModel : Observable
     public void ShowMessage(string text, string cssClass)
     {
         _messageClass = cssClass;
-        Raise(nameof(MessageBrush));
+        Raise(nameof(MessageIsSuccess));
+        Raise(nameof(MessageIsError));
+        Raise(nameof(MessageIsWarning));
         Message = text;
     }
 

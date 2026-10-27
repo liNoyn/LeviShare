@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="11.2.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LeviShare.Core\LeviShare.Core.csproj" />
+    <ProjectReference Include="..\..\src\LeviShare.App\LeviShare.App.csproj" />
   </ItemGroup>
 
 </Project>

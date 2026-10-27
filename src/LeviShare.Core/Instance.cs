@@ -3,7 +3,9 @@ using System.Text.Json.Nodes;
 namespace LeviShare;
 
 /// <summary>A mod installed with lip. Only its id and version are shared; LeviLauncher reinstalls it.</summary>
-public sealed record LipPackage(string Identifier, string Version, bool ExplicitInstalled, IReadOnlyList<string> Folders);
+/// <param name="Dependencies">Identifiers this package depends on (any variant), without the "#variant" suffix.</param>
+public sealed record LipPackage(string Identifier, string Version, bool ExplicitInstalled, IReadOnlyList<string> Folders,
+    IReadOnlyList<string>? Dependencies = null);
 
 /// <summary>A mod folder copied into mods/ by hand. Shared as files.</summary>
 public sealed record RawMod(string Folder, string Name, string Version, bool Enabled, string Path);
@@ -90,8 +92,13 @@ public sealed class Instance
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (folders.Count == 0) continue;
+            var dependencies = (p["manifest"]?["variants"] as JsonArray ?? [])
+                .SelectMany(v => v?["dependencies"] as JsonObject ?? [])
+                .Select(d => d.Key.Split('#')[0])
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             // lip locks packages the user installed on purpose; dependencies are not locked.
-            LipPackages.Add(new LipPackage(tooth, version, LenientJson.Bool(p["locked"]), folders));
+            LipPackages.Add(new LipPackage(tooth, version, LenientJson.Bool(p["locked"]), folders, dependencies));
         }
         LipPackages.Sort((a, b) => string.Compare(a.Identifier, b.Identifier, StringComparison.OrdinalIgnoreCase));
     }

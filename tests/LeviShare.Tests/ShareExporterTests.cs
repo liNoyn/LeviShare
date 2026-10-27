@@ -173,6 +173,32 @@ public sealed class ShareExporterTests : IDisposable
     }
 
     [Fact]
+    public void DependencyWithoutItsParentIsInstalledExplicitly()
+    {
+        var dir = "versions/Deps";
+        Write($"{dir}/version.json", """{"gameVersion":"1.26.51.01","type":"release","packageType":"gdk","enableIsolation":true}""");
+        foreach (var mod in new[] { "LeviLamina", "Helper" }) Write($"{dir}/mods/{mod}/{mod}.dll", "dll");
+        string File(string mod) => Path.Combine(_root, "versions", "Deps", "mods", mod, mod + ".dll").Replace("\\", "\\\\");
+        // Same shape as lip's tooth_lock.json: dependency keys may carry a "#variant" suffix.
+        Write($"{dir}/tooth_lock.json", $$$"""
+            {"packages":[
+              {"locked":true,"manifest":{"tooth":"github.com/LiteLDev/LeviLamina","version":"26.51.5",
+                "variants":[{"label":"client","dependencies":{"github.com/LiteLDev/Helper#client":"1.*"}}]},"files":["{{{File("LeviLamina")}}}"]},
+              {"locked":false,"manifest":{"tooth":"github.com/LiteLDev/Helper","version":"1.3.3","variants":[]},"files":["{{{File("Helper")}}}"]}
+            ]}
+            """);
+        var inst = Instance.Open(VersionsDir, "Deps");
+        Assert.Equal(["github.com/LiteLDev/Helper"], inst.LipPackages.Single(p => p.Identifier.EndsWith("LeviLamina")).Dependencies);
+
+        var both = ShareExporter.Plan(inst, ShareSelection.Default(inst));
+        Assert.False(both.LipPackages.Single(p => p.Identifier.EndsWith("Helper")).ExplicitInstalled);
+
+        var onlyHelper = new ShareSelection();
+        onlyHelper.LipPackages.Add("github.com/LiteLDev/Helper");
+        Assert.True(Assert.Single(ShareExporter.Plan(inst, onlyHelper).LipPackages).ExplicitInstalled);
+    }
+
+    [Fact]
     public void RefusesEmptySelection()
     {
         var inst = CreateInstance();

@@ -15,6 +15,8 @@ zip は LeviLauncher 自身のインスタンスバックアップ形式なの�
 
 ## 構成を共有する
 
+検索は名前・バージョン・フォルダ名が対象です。**すべて／なし** は表示中の項目だけを変え、**選択済みのみ** は表示を絞るだけで書き出す内容は変えません。見た目は [LeviLauncher](https://github.com/LiteLDev/LeviLauncher) の配色に合わせていて、システム／ライト／ダークを切り替えられます。
+
 1. LeviShare を起動します。LeviLauncher のデータ（`%APPDATA%\levilauncher.exe`、または LeviLauncher の設定で変えた場所）を自動で見つけます。
    見つからないときは **変更...** から `versions` を含むフォルダを選んでください。
 2. インスタンスを選びます。
