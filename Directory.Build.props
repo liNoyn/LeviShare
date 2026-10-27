@@ -1,7 +1,7 @@
 <Project>
   <!-- One version for the app, the core library and the release zip name. -->
   <PropertyGroup>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>Noyn</Authors>
   </PropertyGroup>
 </Project>
